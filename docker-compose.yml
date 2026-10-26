@@ -1,0 +1,38 @@
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      SA_PASSWORD: "Shortener@123"
+      ACCEPT_EULA: "Y"
+    ports:
+      - "1433:1433"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  backend:
+    build: ./backend-dotnet
+    ports:
+      - "5000:5000"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=db;Database=UrlShortenerDb;User=sa;Password=Shortener@123;TrustServerCertificate=True
+      - ConnectionStrings__Redis=redis:6379
+      - Jwt__Secret=urlshortener-super-secret-key-32chars!!
+      - AppSettings__BaseUrl=http://localhost:5000
+    depends_on:
+      - db
+      - redis
+
+  analytics:
+    build: ./python-analytics
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_CONNECTION=mssql+pyodbc://sa:Shortener@123@db/UrlShortenerDb?driver=ODBC+Driver+18+for+SQL+Server&TrustServerCertificate=yes
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - db
+      - redis
